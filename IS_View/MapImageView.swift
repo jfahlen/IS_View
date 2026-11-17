@@ -15,7 +15,7 @@ struct MapImageView: View {
                             y: oy + (Double(sy - v.py0) + 0.5) * Double(v.scale) * k)
                 }
                 ZStack {
-                    Image(uiImage: v.image).resizable().interpolation(.none)
+                    Image(uiImage: v.image).resizable().interpolation(.high)
                         .frame(width: imgW * k, height: imgH * k)
                         .position(x: geo.size.width / 2, y: geo.size.height / 2)
                     if let g = model.gpsPixel {
