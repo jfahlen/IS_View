@@ -15,9 +15,26 @@ struct MapImageView: View {
                             y: oy + (Double(sy - v.py0) + 0.5) * Double(v.scale) * k)
                 }
                 ZStack {
-                    Image(uiImage: v.image).resizable().interpolation(.high)
-                        .frame(width: imgW * k, height: imgH * k)
-                        .position(x: geo.size.width / 2, y: geo.size.height / 2)
+                    Group {
+                        switch model.displayMode {
+                        case .image:
+                            Image(uiImage: v.image).resizable().interpolation(.high)
+                        case .map, .street:
+                            AlignedMapView(view: v, satellite: false)
+                        case .satellite:
+                            AlignedMapView(view: v, satellite: true)
+                        }
+                    }
+                    .frame(width: imgW * k, height: imgH * k)
+                    .position(x: geo.size.width / 2, y: geo.size.height / 2)
+                    if model.displayMode == .street {
+                        let sel = model.touchPixel ?? model.gpsPixel
+                        let c = sel.map { v.coordinate(px: Double($0.x) + 0.5, py: Double($0.y) + 0.5) }
+                            ?? v.coordinate(px: v.winCx, py: v.winCy)
+                        LookAroundCard(coordinate: c)
+                            .frame(width: imgW * k * 0.55, height: imgH * k * 0.34)
+                            .position(x: ox + imgW * k * 0.275 + 8, y: oy + imgH * k * 0.17 + 8)
+                    }
                     if let g = model.gpsPixel {
                         Circle().fill(.blue).frame(width: 14, height: 14)
                             .overlay(Circle().stroke(.white, lineWidth: 2))

@@ -51,11 +51,14 @@ final class APIClient {
         func hdr(_ k: String) -> String { h.value(forHTTPHeaderField: k) ?? "" }
         guard let px0 = Int(hdr("X-Px0")), let py0 = Int(hdr("X-Py0")), let w = Int(hdr("X-W")), let ht = Int(hdr("X-H")),
               let sc = Int(hdr("X-Scale")), let cx = Double(hdr("X-Cx")), let cy = Double(hdr("X-Cy")),
-              let ps = Double(hdr("X-Pixel-Size")) else { throw APIError.decode }
+              let ps = Double(hdr("X-Pixel-Size")),
+              let clat = Double(hdr("X-Center-Lat")), let clon = Double(hdr("X-Center-Lon")),
+              let hdg = Double(hdr("X-Heading")) else { throw APIError.decode }
         let spec = Data(base64Encoded: hdr("X-Center-Spectrum")).map(Self.int16s) ?? []
         return ViewResult(image: img, scene: hdr("X-Scene"), px0: px0, py0: py0, w: w, h: ht, scale: sc, cx: cx, cy: cy,
                           pixelSize: ps, centerSpectrum: spec, serverMs: Double(hdr("X-Server-Ms")) ?? 0,
-                          originLat: lat, originLon: lon)
+                          originLat: lat, originLon: lon,
+                          centerLat: clat, centerLon: clon, headingDeg: hdg)
     }
 
     func spectrum(scene: String, x: Int, y: Int) async throws -> [Int16] {

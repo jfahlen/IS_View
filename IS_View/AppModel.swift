@@ -12,6 +12,7 @@ final class AppModel {
     }
 
     // state
+    var displayMode: DisplayMode = .image
     var info: ServerInfo?
     var view: ViewResult?
     var gpsPixel: (x: Int, y: Int)?
@@ -73,13 +74,12 @@ final class AppModel {
         }
     }
 
-    /// Position of the live GPS fix inside the current window (flat-earth offset from the window's request point;
-    /// accurate to well under a pixel over a ~1 km window).
+    /// Position of the live GPS fix inside the current window, using the exact window geometry
+    /// (including grid-north rotation) so it lines up with the map layers.
     private func updateGPSPixel(_ l: CLLocation) {
         guard let v = view else { return }
-        let dE = (l.coordinate.longitude - v.originLon) * 111_320 * cos(v.originLat * .pi / 180)
-        let dN = (l.coordinate.latitude - v.originLat) * 110_540
-        let px = Int((v.cx + dE / v.pixelSize).rounded(.down)), py = Int((v.cy - dN / v.pixelSize).rounded(.down))
+        let p = v.pixel(for: l.coordinate)
+        let px = Int(p.x.rounded(.down)), py = Int(p.y.rounded(.down))
         if gpsPixel?.x == px && gpsPixel?.y == py { return }
         gpsPixel = (px, py)
         gpsTask?.cancel()

@@ -13,6 +13,12 @@ struct ContentView: View {
                 }
                 Spacer()
                 if let a = model.accuracyM { Text("±\(Int(a)) m").font(.caption).foregroundStyle(.secondary) }
+                @Bindable var m = model
+                Menu {
+                    Picker("Display", selection: $m.displayMode) {
+                        ForEach(DisplayMode.allCases) { Label($0.rawValue, systemImage: $0.icon).tag($0) }
+                    }
+                } label: { Image(systemName: model.displayMode.icon) }
                 Button { model.recenter() } label: { Image(systemName: "location.fill") }
                 Button { showSettings = true } label: { Image(systemName: "gearshape") }
             }
