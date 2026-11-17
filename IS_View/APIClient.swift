@@ -1,11 +1,11 @@
 import UIKit
 
 enum APIError: LocalizedError {
-    case badURL, noCoverage(String), http(Int), decode
+    case badURL, noCoverage(String, [String]), http(Int), decode
     var errorDescription: String? {
         switch self {
         case .badURL: return "Bad server URL"
-        case .noCoverage(let s): return s
+        case .noCoverage(let s, _): return s
         case .http(let c): return "Server error \(c)"
         case .decode: return "Bad response"
         }
@@ -38,13 +38,15 @@ final class APIClient {
         return try JSONDecoder().decode(ServerInfo.self, from: d)
     }
 
-    func view(lat: Double, lon: Double, halfM: Double) async throws -> ViewResult {
-        let (d, r) = try await session.data(from: url("/view", ["lat": "\(lat)", "lon": "\(lon)", "half_m": "\(halfM)"]))
+    func view(lat: Double, lon: Double, halfM: Double, scene: String?, preview: Bool) async throws -> ViewResult {
+        var q = ["lat": "\(lat)", "lon": "\(lon)", "half_m": "\(halfM)"]
+        if let scene { q["scene"] = scene; q["preview"] = preview ? "true" : "false" }
+        let (d, r) = try await session.data(from: url("/view", q))
         if let h = r as? HTTPURLResponse, h.statusCode == 404 {
             let j = try? JSONSerialization.jsonObject(with: d) as? [String: Any]
-            var msg = "No data here"
+            var msg = (j?["reason"] as? String) == "outside scene" ? "This dataset has no data at your location" : "No data here"
             if let dist = j?["distance_m"] as? Double { msg += String(format: " (nearest scene %.1f km away)", dist / 1000) }
-            throw APIError.noCoverage(msg)
+            throw APIError.noCoverage(msg, j?["covering"] as? [String] ?? [])
         }
         try check(r)
         guard let h = r as? HTTPURLResponse, let img = UIImage(data: d) else { throw APIError.decode }
@@ -58,7 +60,9 @@ final class APIClient {
         return ViewResult(image: img, scene: hdr("X-Scene"), px0: px0, py0: py0, w: w, h: ht, scale: sc, cx: cx, cy: cy,
                           pixelSize: ps, centerSpectrum: spec, serverMs: Double(hdr("X-Server-Ms")) ?? 0,
                           originLat: lat, originLon: lon,
-                          centerLat: clat, centerLon: clon, headingDeg: hdg)
+                          centerLat: clat, centerLon: clon, headingDeg: hdg,
+                          covering: hdr("X-Covering").split(separator: ",").map(String.init),
+                          preview: hdr("X-Preview") == "1")
     }
 
     func spectrum(scene: String, x: Int, y: Int) async throws -> [Int16] {

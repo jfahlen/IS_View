@@ -1,9 +1,20 @@
 import UIKit
 import CoreLocation
 
+/// One dataset (flight-line scene) available on the server. Each has its own band count and wavelengths.
+struct SceneInfo: Decodable, Identifiable, Equatable {
+    let scene: String
+    let sensor: String
+    let label: String          // e.g. "AVIRIS-3 · 2025-01-11 19:46Z · scene 000"
+    let bands: Int
+    let pixel_size: Double
+    let wavelengths: [Double]
+    var id: String { scene }
+}
+
 struct ServerInfo: Decodable {
     struct View: Decodable { let half_m_default: Double; let half_m_max: Double }
-    let wavelengths: [Double]
+    let scenes: [SceneInfo]
     let view: View
 }
 
@@ -19,6 +30,8 @@ struct ViewResult {
     let originLat: Double, originLon: Double   // the fix this window was requested for
     let centerLat: Double, centerLon: Double   // geographic centre of the image window
     let headingDeg: Double                     // compass bearing of image "up" (UTM grid north), clockwise from true north
+    let covering: [String]                     // ids of all scenes that have data at the fix
+    let preview: Bool                          // true: fix is outside the chosen scene; window is around the scene centre
 }
 
 /// How the main display is rendered. Every mode covers exactly the same ground area as the AVIRIS RGB image.

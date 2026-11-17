@@ -14,7 +14,7 @@ struct SpectrumView: View {
     private var isZoomed: Bool { xRange != Self.full }
 
     var body: some View {
-        let wl = model.info?.wavelengths ?? []
+        let wl = model.currentWavelengths
         let gps = model.gpsSpectrum.map { spectrumPoints(series: "GPS", wavelengths: wl, values: $0.reflectance) } ?? []
         let touch = model.touchSpectrum.map { spectrumPoints(series: "Touch", wavelengths: wl, values: $0.reflectance) } ?? []
         let all = gps + touch
