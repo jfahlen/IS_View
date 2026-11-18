@@ -16,7 +16,10 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
         switch mgr.authorizationStatus {
         case .notDetermined: mgr.requestWhenInUseAuthorization()
         case .denied, .restricted: onStatus?("Location permission denied (Settings > IS View)")
-        default: mgr.startUpdatingLocation()
+        default:
+            mgr.startUpdatingLocation()
+            // A stationary phone may not deliver a new fix for a while: start from the last known one if it is recent.
+            if let l = mgr.location, l.horizontalAccuracy >= 0, abs(l.timestamp.timeIntervalSinceNow) < 120 { onFix?(l) }
         }
     }
 

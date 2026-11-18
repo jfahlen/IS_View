@@ -19,7 +19,8 @@ final class APIClient {
     init(baseURL: String) {
         self.baseURL = baseURL
         let cfg = URLSessionConfiguration.ephemeral
-        cfg.timeoutIntervalForRequest = 8
+        cfg.timeoutIntervalForRequest = 15      // first request after idle may wait for Tailscale to wake up
+        cfg.timeoutIntervalForResource = 25
         cfg.httpMaximumConnectionsPerHost = 4
         cfg.requestCachePolicy = .reloadIgnoringLocalCacheData
         session = URLSession(configuration: cfg)

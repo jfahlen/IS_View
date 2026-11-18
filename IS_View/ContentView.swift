@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(AppModel.self) private var model
+    @Environment(\.scenePhase) private var scenePhase
     @State private var showSettings = false
 
     var body: some View {
@@ -41,5 +42,6 @@ struct ContentView: View {
         }
         .padding(.vertical, 8)
         .sheet(isPresented: $showSettings) { SettingsView() }
+        .onChange(of: scenePhase) { _, p in if p == .active { model.appBecameActive() } }
     }
 }

@@ -44,6 +44,9 @@ final class AppModel {
     }
 
     private var needInfoRefresh = false
+    private var failures = 0                       // consecutive transient failures (timeouts, unreachable server)
+    private var retryTask: Task<Void, Never>?
+    private let network = NetworkWatcher()
     private var api: APIClient
     private let location = LocationService()
     private var lastFix: CLLocation?
@@ -58,7 +61,35 @@ final class AppModel {
         api = APIClient(baseURL: UserDefaults.standard.string(forKey: "serverURL") ?? "http://100.x.y.z:8765")
         location.onFix = { [weak self] l in Task { @MainActor in self?.handleFix(l) } }
         location.onStatus = { [weak self] s in Task { @MainActor in self?.status = s } }
+        network.onChange = { [weak self] ok in Task { @MainActor in if ok { self?.retryNow() } } }
+        network.start()
         location.start()
+    }
+
+    // MARK: robustness
+    /// Retry immediately if the last attempt failed (network came back, app returned to foreground, ...).
+    func retryNow() {
+        guard failures > 0 || view == nil else { return }
+        retryTask?.cancel(); retryTask = nil
+        guard viewTask == nil, let l = lastFix else { return }
+        requestView(l)
+    }
+
+    func appBecameActive() {
+        location.start()
+        retryNow()
+    }
+
+    /// Exponential backoff: 2, 4, 8, 15, 15 … seconds. Independent of GPS updates (a stationary phone gets none).
+    private func scheduleRetry() {
+        retryTask?.cancel()
+        let delay = min(2.0 * pow(2.0, Double(max(failures - 1, 0))), 15)
+        retryTask = Task {
+            try? await Task.sleep(for: .seconds(delay))
+            if Task.isCancelled { return }
+            retryTask = nil
+            if viewTask == nil, let l = lastFix { requestView(l) }
+        }
     }
 
     // MARK: GPS
@@ -73,6 +104,7 @@ final class AppModel {
 
     func recenter() {
         needInfoRefresh = true                    // also picks up scenes added to the server since launch
+        viewTask?.cancel(); viewTask = nil; retryTask?.cancel(); retryTask = nil
         if let l = lastFix { lastRequest = nil; touchPixel = nil; touchSpectrum = nil; requestView(l) }
     }
 
@@ -94,6 +126,7 @@ final class AppModel {
                                            scene: selectedScene, preview: selectedScene != nil)
                 if Task.isCancelled { return }
                 lastLatencyMs = Date().timeIntervalSince(t0) * 1000
+                failures = 0; retryTask?.cancel(); retryTask = nil
                 if view?.scene != v.scene { touchPixel = nil; touchSpectrum = nil; gpsSpectrum = nil }
                 view = v
                 covering = v.covering
@@ -113,8 +146,16 @@ final class AppModel {
                 if case APIError.noCoverage(_, let cov) = error {
                     view = nil; gpsSpectrum = nil; gpsPixel = nil; touchPixel = nil; touchSpectrum = nil; covering = cov
                 }
-                status = error.localizedDescription
-                lastRequest = l   // don't hammer the server while standing outside coverage
+                if case APIError.noCoverage = error {
+                    status = error.localizedDescription
+                    failures = 0
+                    lastRequest = l   // definitive answer: don't re-ask until we have moved
+                } else {
+                    // Transient (timeout, server/Tailscale unreachable, 5xx): keep what is on screen and retry on our own.
+                    failures += 1
+                    status = "Can't reach server — retrying (attempt \(failures)). Is Tailscale connected and the Mac server running?"
+                    scheduleRetry()
+                }
             }
         }
     }
