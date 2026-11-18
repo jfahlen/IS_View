@@ -18,7 +18,7 @@ struct MapImageView: View {
                     Group {
                         switch model.displayMode {
                         case .image:
-                            Image(uiImage: v.image).resizable().interpolation(.high)
+                            Image(uiImage: v.image).resizable().interpolation(.none).antialiased(false)
                         case .map, .street:
                             AlignedMapView(view: v, satellite: false)
                         case .satellite:

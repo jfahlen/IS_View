@@ -16,7 +16,7 @@ struct SettingsView: View {
                 }
                 Section("Window half-width") {
                     Picker("Half-width", selection: $m.halfM) {
-                        ForEach([250.0, 500, 1000, 2000], id: \.self) { Text("\(Int($0)) m").tag($0) }
+                        ForEach([50.0, 100, 250, 500, 1000, 2000], id: \.self) { Text("\(Int($0)) m").tag($0) }
                     }.pickerStyle(.segmented)
                 }
             }

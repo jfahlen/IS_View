@@ -97,7 +97,7 @@ final class AppModel {
         lastFix = l
         accuracyM = l.horizontalAccuracy
         // Re-request the window when we leave the central part of the current one.
-        let needNew = lastRequest.map { l.distance(from: $0) > 0.25 * halfM } ?? true
+        let needNew = lastRequest.map { l.distance(from: $0) > max(0.25 * halfM, 10) } ?? true
         if needNew && viewTask == nil { requestView(l) }
         updateGPSPixel(l)
     }
